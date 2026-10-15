@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador Código de Barras Brinks</title>
+    <!-- Tailwind CSS para diseño -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        puppis: {
+                            yellow: '#FFC801',
+                            yellowLight: '#FFF8DB',
+                            blue: '#1B5299',
+                            blueDark: '#133D73',
+                            blueHover: '#16437E',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- JSBarcode para generación de código de barras Code128 -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+</head>
+<body class="bg-puppis-yellow min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+    <!-- Decoración de fondo estilo Puppis -->
+    <div class="absolute -top-16 -left-16 w-64 h-64 bg-puppis-blue/10 rounded-full blur-2xl pointer-events-none"></div>
+    <div class="absolute -bottom-16 -right-16 w-80 h-80 bg-puppis-blue/20 rounded-full blur-2xl pointer-events-none"></div>
+
+    <!-- Tarjeta Principal -->
+    <div class="bg-white shadow-2xl rounded-3xl p-6 md:p-8 w-full max-w-lg border-4 border-puppis-blue relative z-10">
+        <!-- Encabezado con detalles estilizados -->
+        <div class="text-center mb-6">
+            <div class="inline-flex items-center justify-center w-12 h-12 bg-puppis-yellowLight rounded-full mb-3 border-2 border-puppis-yellow">
+                <svg class="w-6 h-6 text-puppis-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                </svg>
+            </div>
+            <h1 class="text-2xl md:text-3xl font-extrabold text-puppis-blue tracking-tight">
+                Generador Código de Barras Brinks
+            </h1>
+        </div>
+
+        <!-- Formulario -->
+        <div class="space-y-5">
+            <div>
+                <label for="nombre" class="block text-sm font-bold text-slate-700 mb-1">Nombre Completo</label>
+                <input type="text" id="nombre" placeholder="Ej: Juan Pérez" 
+                       class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-puppis-yellow focus:border-puppis-blue outline-none transition font-medium text-slate-800">
+            </div>
+
+            <div>
+                <label for="cedula" class="block text-sm font-bold text-slate-700 mb-1">Número de Documento / Cédula</label>
+                <input type="text" id="cedula" placeholder="Ej: 1015407114" 
+                       class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-puppis-yellow focus:border-puppis-blue outline-none transition font-medium text-slate-800">
+            </div>
+
+            <div class="flex items-center justify-between p-3 bg-puppis-yellowLight rounded-xl border border-puppis-yellow/50">
+                <span class="text-sm font-bold text-puppis-blueDark">Ocultar texto del código de barras</span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="ocultarTexto" class="sr-only peer" checked>
+                    <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-puppis-blue"></div>
+                </label>
+            </div>
+
+            <button onclick="procesarYDescargar()" 
+                    class="w-full bg-puppis-blue hover:bg-puppis-blueHover text-white font-extrabold py-3.5 px-4 rounded-xl shadow-lg hover:shadow-xl transition duration-200 ease-in-out transform active:scale-[0.98] border-b-4 border-puppis-blueDark">
+                Generar y Descargar PNG
+            </button>
+        </div>
+
+        <!-- Vista previa oculta temporalmente -->
+        <div id="previewContainer" class="mt-6 p-4 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl text-center hidden">
+            <p class="text-xs font-extrabold text-puppis-blue uppercase tracking-wider mb-2">Vista Previa Generada</p>
+            <div id="etiquetaBox" class="inline-block bg-white p-4 border border-slate-300 rounded-xl shadow-sm text-center">
+                <div id="txtNombre" class="font-bold text-slate-800 text-sm"></div>
+                <div id="txtCedula" class="text-xs text-slate-600 mb-2 font-medium"></div>
+                <svg id="barcode"></svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Canvas auxiliar para convertir SVG a PNG -->
+    <canvas id="canvas" class="hidden"></canvas>
+
+    <script>
+        function procesarYDescargar() {
+            const nombre = document.getElementById('nombre').value.trim();
+            const cedula = document.getElementById('cedula').value.trim();
+            const ocultarTexto = document.getElementById('ocultarTexto').checked;
+
+            if (!cedula) {
+                alert('Por favor, ingresa el número de documento/cédula.');
+                return;
+            }
+
+            // Construir código concatenando prefijo 4
+            const codigoDatos = `4${cedula}`;
+
+            // Mostrar contenedores de vista previa
+            document.getElementById('previewContainer').classList.remove('hidden');
+            document.getElementById('txtNombre').innerText = nombre ? `Nombre: ${nombre}` : '';
+            document.getElementById('txtCedula').innerText = `Documento: ${cedula}`;
+
+            // Generar Código de Barras Code-128 mediante JsBarcode
+            JsBarcode("#barcode", codigoDatos, {
+                format: "CODE128",
+                width: 2,
+                height: 80,
+                displayValue: !ocultarTexto, // Oculta o muestra el texto bajo la barra
+                margin: 10,
+                background: "#ffffff",
+                lineColor: "#000000"
+            });
+
+            // Convertir la vista previa a imagen PNG y descargar
+            setTimeout(() => {
+                descargarComoImagen(nombre, cedula);
+            }, 100);
+        }
+
+        function descargarComoImagen(nombre, cedula) {
+            const svgElement = document.getElementById('barcode');
+            const svgData = new XMLSerializer().serializeToString(svgElement);
+            
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Crear imagen a partir del SVG del código de barras
+            const img = new Image();
+            const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+
+            img.onload = function () {
+                const nombreTexto = nombre ? `Nombre: ${nombre}` : '';
+                const docTexto = `Documento: ${cedula}`;
+
+                // Dimensiones del lienzo
+                const padding = 20;
+                const headerHeight = nombreTexto ? 50 : 30;
+                
+                canvas.width = Math.max(img.width + (padding * 2), 300);
+                canvas.height = img.height + headerHeight + (padding * 2);
+
+                // Fondo Blanco
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Dibujar Nombre y Cédula
+                ctx.fillStyle = '#000000';
+                ctx.textAlign = 'center';
+                
+                let currentY = padding + 15;
+                if (nombreTexto) {
+                    ctx.font = 'bold 16px Arial';
+                    ctx.fillText(nombreTexto, canvas.width / 2, currentY);
+                    currentY += 20;
+                }
+
+                ctx.font = '14px Arial';
+                ctx.fillText(docTexto, canvas.width / 2, currentY);
+                currentY += 15;
+
+                // Dibujar código de barras
+                const xPos = (canvas.width - img.width) / 2;
+                ctx.drawImage(img, xPos, currentY);
+
+                // Disparar descarga
+                const link = document.createElement('a');
+                const nombreArchivo = nombre ? `${nombre.replace(/\s+/g, '_')}_${cedula}.png` : `Codigo_${cedula}.png`;
+                link.download = nombreArchivo;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+
+                URL.revokeObjectURL(url);
+            };
+
+            img.src = url;
+        }
+    </script>
+</body>
+</html>
